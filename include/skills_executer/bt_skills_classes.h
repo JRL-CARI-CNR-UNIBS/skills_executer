@@ -1,5 +1,5 @@
-#ifndef SKILLS_CLASSES_H
-#define SKILLS_CLASSES_H
+#ifndef BT_SKILLS_CLASSES_H
+#define BT_SKILLS_CLASSES_H
 
 #include <ros/ros.h>
 #include <behaviortree_cpp_v3/behavior_tree.h>
