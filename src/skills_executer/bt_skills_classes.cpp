@@ -1,6 +1,14 @@
 #include <skills_executer/bt_skills_classes.h>
 
-std::vector<std::string> skillNames(const std::string& action_skill_name)
+SkillActionNode::SkillActionNode(const std::string &name) : BT::SyncActionNode(name, {})
+{
+    skill_exec_clnt_ = n_.serviceClient<skills_executer_msgs::SkillExecution>("/skills_exec/execute_skill");
+    ROS_WARN("Waiting for %s", skill_exec_clnt_.getService().c_str() );
+    skill_exec_clnt_.waitForExistence();
+    ROS_WARN("Connection ok");
+}
+
+std::vector<std::string> SkillActionNode::skillNames(const std::string& action_skill_name)
 {
     std::size_t found = action_skill_name.find("/");
     std::vector<std::string> names;
@@ -23,18 +31,11 @@ std::vector<std::string> skillNames(const std::string& action_skill_name)
     return names;
 }
 
-SkillActionNode::SkillActionNode(const std::string &name) : BT::SyncActionNode(name, {})
-{
-    skill_exec_clnt_ = n_.serviceClient<skills_executer_msgs::SkillExecution>("/skills_exec/execute_skill");
-    ROS_WARN("Waiting for %s", skill_exec_clnt_.getService().c_str() );
-    skill_exec_clnt_.waitForExistence();
-    ROS_WARN("Connection ok");
-}
-
-
 BT::NodeStatus SkillActionNode::tick()
 {
     std::vector<std::string> names = skillNames(name());
+    ROS_INFO("action_name: %s",names.at(0).c_str());
+    ROS_INFO("skill_name: %s",names.at(1).c_str());
     if (names.empty())
     {
         ROS_WARN("The name of action don't respect the standard");
@@ -53,3 +54,5 @@ BT::NodeStatus SkillActionNode::tick()
 
     return BT::NodeStatus::SUCCESS;
 }
+
+
