@@ -32,13 +32,29 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
     ROS_INFO("Skill type: %s", skill_type.c_str());
 
     if ( !skill_type.compare(cart_move_type_) )
-        return cartMove(req.action_name, req.skill_name);
+    {
+        res.result = cartMove(req.action_name, req.skill_name);
+        ROS_INFO("cartMove result: %d", res.result);
+    }
     else if ( !skill_type.compare(simple_touch_type_) )
-        return simpleTouch(req.action_name, req.skill_name);
+    {
+        res.result = simpleTouch(req.action_name, req.skill_name);
+        ROS_INFO("simpleTouch result: %d", res.result);
+    }
     else if ( !skill_type.compare(gripper_move_type_) )
-        return gripperMove(req.action_name, req.skill_name);
+    {
+        res.result = gripperMove(req.action_name, req.skill_name);
+        ROS_INFO("gripperMove result: %d", res.result);
+    }
     else
-        return skills_executer_msgs::SkillExecutionResponse::NoSkillType;
+    {
+        ROS_INFO("result: NoSkillType");
+        res.result = skills_executer_msgs::SkillExecutionResponse::NoSkillType;
+    }
+
+    ROS_INFO("Return true");
+    return true;
+
 }
 
 int SkillsExec::gripperMove(const std::string &action_name, const std::string &skill_name)
@@ -47,12 +63,15 @@ int SkillsExec::gripperMove(const std::string &action_name, const std::string &s
     double velocity;
     double position;
     bool set = false;
+    ROS_INFO("Read params");
+
     if (!getParam(action_name, skill_name, "torque", torque))
     {
         torque = 0.0;
     }
     else
     {
+        ROS_INFO("Read torque: %lf", torque);
         set = true;
     }
     if (!getParam(action_name, skill_name, "velocity", velocity))
@@ -61,6 +80,7 @@ int SkillsExec::gripperMove(const std::string &action_name, const std::string &s
     }
     else
     {
+        ROS_INFO("Read velocity: %lf", velocity);
         set = true;
     }
     if (!getParam(action_name, skill_name, "position", position))
@@ -69,6 +89,7 @@ int SkillsExec::gripperMove(const std::string &action_name, const std::string &s
     }
     else
     {
+        ROS_INFO("Read position: %lf", position);
         set = true;
     }
 
