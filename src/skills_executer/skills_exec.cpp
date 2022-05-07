@@ -8,7 +8,8 @@ SkillsExec::SkillsExec(const ros::NodeHandle & n) : n_(n)
     twist_pub_        = n_.advertise<geometry_msgs::TwistStamped>("/target_cart_twist",1);
     gripper_move_pub_ = n_.advertise<sensor_msgs::JointState>("/gripper/joint_target",1);
 
-    skill_exec_srv_    = n_.advertiseService("/skills_exec/execute_skill", &SkillsExec::skillsExecution, this);
+    skill_exec_srv_ = n_.advertiseService("/skills_exec/execute_skill", &SkillsExec::skillsExecution, this);
+
     start_config_clnt_ = n_.serviceClient<configuration_msgs::StartConfiguration>("/configuration_manager/start_configuration");
     ROS_WARN("Waiting for %s", start_config_clnt_.getService().c_str() );
     start_config_clnt_.waitForExistence();
@@ -41,10 +42,15 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
         res.result = simpleTouch(req.action_name, req.skill_name);
         ROS_INFO("simpleTouch result: %d", res.result);
     }
-    else if ( !skill_type.compare(gripper_move_type_) )
+    else if ( !skill_type.compare(parallel_2f_gripper_move_type_) )
     {
-        res.result = gripperMove(req.action_name, req.skill_name);
-        ROS_INFO("gripperMove result: %d", res.result);
+        res.result = parallel2fGripperMove(req.action_name, req.skill_name);
+        ROS_INFO("parallel2fGripperMove result: %d", res.result);
+    }
+    else if ( !skill_type.compare(robotiq_gripper_move_type_) )
+    {
+        res.result = robotiqGripperMove(req.action_name, req.skill_name);
+        ROS_INFO("parallel2fGripperMove result: %d", res.result);
     }
     else
     {
@@ -57,7 +63,7 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
 
 }
 
-int SkillsExec::gripperMove(const std::string &action_name, const std::string &skill_name)
+int SkillsExec::parallel2fGripperMove(const std::string &action_name, const std::string &skill_name)
 {
     double torque;
     double velocity;
@@ -113,6 +119,39 @@ int SkillsExec::gripperMove(const std::string &action_name, const std::string &s
     gripper_move_pub_.publish(gripper_move_msg);
 
 //    Inserire la parte che controlla se la skill è andata a buon fine.
+
+    return skills_executer_msgs::SkillExecutionResponse::Success;
+}
+
+int SkillsExec::robotiqGripperMove(const std::string &action_name, const std::string &skill_name)
+{
+    ros::ServiceClient gripper_clnt = n_.serviceClient<manipulation_msgs::JobExecution>("/robotiq_gripper");
+    ROS_WARN("Waiting for %s", gripper_clnt.getService().c_str() );
+    gripper_clnt.waitForExistence();
+    ROS_WARN("Connection ok");
+    manipulation_msgs::JobExecution gripper_srv;
+
+    if (!getParam(action_name, skill_name, "property_id", gripper_srv.request.property_id))
+    {
+        ROS_WARN("The parameter %s/%s/property_id is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+    if (!getParam(action_name, skill_name, "skill_name", gripper_srv.request.skill_name))
+    {
+        ROS_WARN("The parameter %s/%s/skill_name is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+    if (!getParam(action_name, skill_name, "tool_id", gripper_srv.request.tool_id))
+    {
+        ROS_WARN("The parameter %s/%s/tool_id is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+
+    if ( !gripper_clnt.call(gripper_srv) )
+    {
+        ROS_ERROR("Unable to move gripper to %s state",gripper_srv.request.property_id.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::Error;
+    }
 
     return skills_executer_msgs::SkillExecutionResponse::Success;
 }

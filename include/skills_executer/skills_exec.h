@@ -9,6 +9,7 @@
 #include <simple_touch_controller_msgs/simpleTouchGoal.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/JointState.h>
+#include <manipulation_msgs/JobExecution.h>
 
 namespace skills_executer
 {
@@ -21,9 +22,10 @@ public:
                          skills_executer_msgs::SkillExecution::Response &res);
 
     bool changeConfig(std::string config_name);
-    int gripperMove(const std::string &action_name, const std::string &skill_name);
-    int cartMove   (const std::string &action_name, const std::string &skill_name);
-    int simpleTouch(const std::string &action_name, const std::string &skill_name);
+    int parallel2fGripperMove(const std::string &action_name, const std::string &skill_name);
+    int robotiqGripperMove   (const std::string &action_name, const std::string &skill_name);
+    int cartMove             (const std::string &action_name, const std::string &skill_name);
+    int simpleTouch          (const std::string &action_name, const std::string &skill_name);
 
     template<typename T> bool getParam(const std::string &action_name, const std::string &skill_name, const std::string &param_name, T &param_value);
 
@@ -40,7 +42,8 @@ private:
 
     std::string cart_move_type_    = "cart_move";
     std::string simple_touch_type_ = "simple_touch";
-    std::string gripper_move_type_ = "gripper_move";
+    std::string parallel_2f_gripper_move_type_ = "parallel_2f_gripper_move";
+    std::string robotiq_gripper_move_type_ = "robotiq_gripper_move";
 
     std::string watch_config_        = "watch";
     std::string cart_move_config_    = "cartesian_velocity";
