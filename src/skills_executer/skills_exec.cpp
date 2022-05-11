@@ -13,9 +13,10 @@ SkillsExec::SkillsExec(const ros::NodeHandle & n) : n_(n)
     start_config_clnt_ = n_.serviceClient<configuration_msgs::StartConfiguration>("/configuration_manager/start_configuration");
     ROS_WARN("Waiting for %s", start_config_clnt_.getService().c_str() );
     start_config_clnt_.waitForExistence();
-    ROS_WARN("Connection ok");
+    ROS_WARN("Connection ok");   
 
-    touch_action_ = std::make_shared<actionlib::SimpleActionClient<simple_touch_controller_msgs::simpleTouchAction>>("simple_touch", true);
+    touch_action_         = std::make_shared<actionlib::SimpleActionClient<simple_touch_controller_msgs::simpleTouchAction>>("simple_touch", true);
+    relative_move_action_ = std::make_shared<actionlib::SimpleActionClient<relative_cartesian_controller_msgs::RelativeMoveAction>>("relative_move", true);
     screw_accuracy_ = 0.1;
 }
 
@@ -32,10 +33,15 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
     }
     ROS_INFO("Skill type: %s", skill_type.c_str());
 
-    if ( !skill_type.compare(cart_move_type_) )
+    if ( !skill_type.compare(cart_vel_type_) )
     {
-        res.result = cartMove(req.action_name, req.skill_name);
-        ROS_INFO("cartMove result: %d", res.result);
+        res.result = cartVel(req.action_name, req.skill_name);
+        ROS_INFO("cartVel result: %d", res.result);
+    }
+    else if ( !skill_type.compare(cart_pos_type_) )
+    {
+        res.result = cartPos(req.action_name, req.skill_name);
+        ROS_INFO("cartPos result: %d", res.result);
     }
     else if ( !skill_type.compare(simple_touch_type_) )
     {
@@ -156,7 +162,7 @@ int SkillsExec::robotiqGripperMove(const std::string &action_name, const std::st
     return skills_executer_msgs::SkillExecutionResponse::Success;
 }
 
-int SkillsExec::cartMove(const std::string &action_name, const std::string &skill_name)
+int SkillsExec::cartVel(const std::string &action_name, const std::string &skill_name)
 {
 
     std::string        skill_type;
@@ -246,6 +252,174 @@ int SkillsExec::cartMove(const std::string &action_name, const std::string &skil
     return skills_executer_msgs::SkillExecutionResponse::Success;
 }
 
+int SkillsExec::cartPos(const std::string &action_name, const std::string &skill_name)
+{
+    double rotZdeg, rotYdeg, rotXdeg, traXmm, traYmm, traZmm, target_angular_velocity, target_linear_velocity, vel;
+    std::string skill_type;
+    geometry_msgs::PoseStamped relative_pose;
+    tf2::Quaternion quat;
+    std::vector<double> position, orientation;
+
+    if (!getParam(action_name, skill_name, "skill_type", skill_type))
+    {
+        ROS_WARN("The parameter %s/%s/skill_type is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+    if(!getParam(action_name, skill_name, "rotZdeg", rotZdeg) )
+    {
+        double angle = rotZdeg*pi_/180;
+        quat.setRPY(0,0,angle);
+//        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,0.0,angle);
+        relative_pose.pose.orientation.x = quat.getX();
+        relative_pose.pose.orientation.y = quat.getY();
+        relative_pose.pose.orientation.z = quat.getZ();
+        relative_pose.pose.orientation.w = quat.getW();
+        relative_pose.pose.position.x = 0.0;
+        relative_pose.pose.position.y = 0.0;
+        relative_pose.pose.position.z = 0.0;
+    }
+    else if(!getParam(action_name, skill_name, "rotYdeg", rotYdeg) )
+    {
+        double angle = rotYdeg*pi_/180;
+        quat.setRPY(0,angle,0);
+//        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,angle,0.0);
+        relative_pose.pose.orientation.x = quat.getX();
+        relative_pose.pose.orientation.y = quat.getY();
+        relative_pose.pose.orientation.w = quat.getZ();
+        relative_pose.pose.orientation.z = quat.getW();
+        relative_pose.pose.position.x = 0.0;
+        relative_pose.pose.position.y = 0.0;
+        relative_pose.pose.position.z = 0.0;
+    }
+    else if(!getParam(action_name, skill_name, "rotXdeg", rotXdeg) )
+    {
+        double angle = rotXdeg*pi_/180;
+        quat.setRPY(angle,0,0);
+//        relative_pose.pose.orientation=tf::createQuaternionFromRPY(angle,0.0,0.0);
+        relative_pose.pose.orientation.x = quat.getX();
+        relative_pose.pose.orientation.y = quat.getY();
+        relative_pose.pose.orientation.w = quat.getZ();
+        relative_pose.pose.orientation.z = quat.getW();
+        relative_pose.pose.position.x = 0.0;
+        relative_pose.pose.position.y = 0.0;
+        relative_pose.pose.position.z = 0.0;
+    }
+    else if(!getParam(action_name, skill_name, "traXmm", traXmm) )
+    {
+        relative_pose.pose.position.x = traXmm/1000;
+        relative_pose.pose.position.y = 0.0;
+        relative_pose.pose.position.z = 0.0;
+        relative_pose.pose.orientation.x = 0.0;
+        relative_pose.pose.orientation.y = 0.0;
+        relative_pose.pose.orientation.z = 0.0;
+        relative_pose.pose.orientation.w = 1.0;
+    }
+    else if(!getParam(action_name, skill_name, "traYmm", traYmm) )
+    {
+        relative_pose.pose.position.x = 0.0;
+        relative_pose.pose.position.y = traYmm/1000;
+        relative_pose.pose.position.z = 0.0;
+        relative_pose.pose.orientation.x = 0.0;
+        relative_pose.pose.orientation.y = 0.0;
+        relative_pose.pose.orientation.z = 0.0;
+        relative_pose.pose.orientation.w = 1.0;
+    }
+    else if(!getParam(action_name, skill_name, "traZmm", traZmm) )
+    {
+        relative_pose.pose.position.x = 0.0;
+        relative_pose.pose.position.y = 0.0;
+        relative_pose.pose.position.z = traZmm/1000;
+        relative_pose.pose.orientation.x = 0.0;
+        relative_pose.pose.orientation.y = 0.0;
+        relative_pose.pose.orientation.z = 0.0;
+        relative_pose.pose.orientation.w = 1.0;
+    }
+    else
+    {
+        if ( !getParam(action_name, skill_name, "position", position) )
+        {
+            ROS_WARN("The parameter %s/%s/position is not setted", action_name.c_str(), skill_name.c_str());
+            return skills_executer_msgs::SkillExecutionResponse::NoParam;
+        }
+        else
+        {
+            if ( !position.size() == 3 )
+            {
+                ROS_WARN("The position size is not 3");
+                return skills_executer_msgs::SkillExecutionResponse::NoParam;
+            }
+            relative_pose.pose.position.x = position.at(0);
+            relative_pose.pose.position.y = position.at(1);
+            relative_pose.pose.position.z = position.at(2);
+        }
+        if ( !getParam(action_name, skill_name, "orientation", orientation) )
+        {
+            ROS_WARN("The parameter %s/%s/orientation is not setted", action_name.c_str(), skill_name.c_str());
+            return skills_executer_msgs::SkillExecutionResponse::NoParam;
+        }
+        else
+        {
+            if ( !orientation.size() == 4 )
+            {
+                ROS_WARN("The orientation size is not 4");
+                return skills_executer_msgs::SkillExecutionResponse::NoParam;
+            }
+            relative_pose.pose.orientation.x = orientation.at(0);
+            relative_pose.pose.orientation.y = orientation.at(1);
+            relative_pose.pose.orientation.z = orientation.at(2);
+            relative_pose.pose.orientation.w = orientation.at(3);
+        }
+    }
+    if ( !getParam(action_name, skill_name, "frame", relative_pose.header.frame_id) )
+    {
+        ROS_WARN("The parameter %s/%s/frame is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+    if ( !getParam(action_name, skill_name, "linear_velocity_m_s", target_linear_velocity) )
+    {
+        if ( !getParam(action_name, skill_name, "linear_velocity_mm_s", vel) )
+        {
+            ROS_WARN("The parameter %s/%s/linear_velocity_m_s or linear_velocity_mm_s is not setted", action_name.c_str(), skill_name.c_str());
+            ROS_WARN("The default value is linear_velocity_m_s = 0.250 m/s");
+            target_linear_velocity = 0.250;
+        }
+        else
+        {
+            target_linear_velocity = vel / 1000;
+        }
+    }
+    if ( !getParam(action_name, skill_name, "angular_velocity_rad_s", target_angular_velocity) )
+    {
+        if ( !getParam(action_name, skill_name, "angular_velocity_deg_s", vel) )
+        {
+            ROS_WARN("The parameter %s/%s/angular_velocity_rad_s or angular_velocity_deg_s is not setted", action_name.c_str(), skill_name.c_str());
+            ROS_WARN("The default value is angular_velocity_deg_s = 30 deg/sec");
+            target_angular_velocity = 30*pi_/180;
+        }
+        else
+        {
+            target_linear_velocity = vel*pi_/180;
+        }
+    }
+
+    if ( !changeConfig(skill_type) )
+        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+
+    relative_cartesian_controller_msgs::RelativeMoveActionGoal rel_move_goal;
+    rel_move_goal.goal.target_angular_velocity = target_angular_velocity;
+    rel_move_goal.goal.target_linear_velocity = target_linear_velocity;
+    rel_move_goal.goal.relative_pose = relative_pose;
+
+    relative_move_action_->waitForServer();
+    relative_move_action_->sendGoalAndWait(rel_move_goal.goal);
+
+    if ( !changeConfig(watch_config_) )
+        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+    return skills_executer_msgs::SkillExecutionResponse::Success;
+}
+
 int SkillsExec::simpleTouch(const std::string &action_name, const std::string &skill_name)
 {
     std::string         skill_type;
@@ -255,6 +429,7 @@ int SkillsExec::simpleTouch(const std::string &action_name, const std::string &s
     std::vector<double> target_wrench;
     std::vector<double> wrench_toll;
     std::vector<double> wrench_deadband;
+    bool  reset_sensor;
     if (!getParam(action_name, skill_name, "skill_type", skill_type) )
     {
         ROS_WARN("The parameter %s/%s/skill_type is not setted", action_name.c_str(), skill_name.c_str());
@@ -351,5 +526,19 @@ bool SkillsExec::changeConfig(std::string config_name)
 //    ros::Duration(0.1).sleep();
     return true;
 }
+
+int SkillsExec::reset_ur10e_ft_sensor()
+{
+    ros::ServiceClient reset_force_sensor_clnt = n_.serviceClient<std_srvs::Trigger>("/ur10e_hw/zero_ftsensor");
+    reset_force_sensor_clnt.waitForExistence();
+    std_srvs::Trigger zero_srv;
+    if ( !reset_force_sensor_clnt.call(zero_srv) )
+    {
+        ROS_ERROR("Unable to reset force sensor");
+        return skills_executer_msgs::SkillExecutionResponse::Error;
+    }
+    return skills_executer_msgs::SkillExecutionResponse::Success;
+}
+
 
 } // end namespace skills_executer

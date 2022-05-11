@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   manipulation_msgs
   behaviortree_cpp_v3
+  relative_cartesian_controller_msgs
 )
 
 catkin_package(
