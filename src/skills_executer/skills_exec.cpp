@@ -265,7 +265,7 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         ROS_WARN("The parameter %s/%s/skill_type is not setted", action_name.c_str(), skill_name.c_str());
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
-    if(!getParam(action_name, skill_name, "rotZdeg", rotZdeg) )
+    if( getParam(action_name, skill_name, "rotZdeg", rotZdeg) )
     {
         double angle = rotZdeg*pi_/180;
         quat.setRPY(0,0,angle);
@@ -277,34 +277,43 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         relative_pose.pose.position.x = 0.0;
         relative_pose.pose.position.y = 0.0;
         relative_pose.pose.position.z = 0.0;
+        ROS_INFO("Readed rotZdeg: %lf", rotZdeg);
+        ROS_INFO("Position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
+        ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
     }
-    else if(!getParam(action_name, skill_name, "rotYdeg", rotYdeg) )
+    else if( getParam(action_name, skill_name, "rotYdeg", rotYdeg) )
     {
         double angle = rotYdeg*pi_/180;
         quat.setRPY(0,angle,0);
 //        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,angle,0.0);
         relative_pose.pose.orientation.x = quat.getX();
         relative_pose.pose.orientation.y = quat.getY();
-        relative_pose.pose.orientation.w = quat.getZ();
-        relative_pose.pose.orientation.z = quat.getW();
+        relative_pose.pose.orientation.z = quat.getZ();
+        relative_pose.pose.orientation.w = quat.getW();
         relative_pose.pose.position.x = 0.0;
         relative_pose.pose.position.y = 0.0;
         relative_pose.pose.position.z = 0.0;
+        ROS_INFO("Readed rotYdeg: %lf", rotYdeg);
+        ROS_INFO("Position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
+        ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
     }
-    else if(!getParam(action_name, skill_name, "rotXdeg", rotXdeg) )
+    else if( getParam(action_name, skill_name, "rotXdeg", rotXdeg) )
     {
         double angle = rotXdeg*pi_/180;
         quat.setRPY(angle,0,0);
 //        relative_pose.pose.orientation=tf::createQuaternionFromRPY(angle,0.0,0.0);
         relative_pose.pose.orientation.x = quat.getX();
         relative_pose.pose.orientation.y = quat.getY();
-        relative_pose.pose.orientation.w = quat.getZ();
-        relative_pose.pose.orientation.z = quat.getW();
+        relative_pose.pose.orientation.z = quat.getZ();
+        relative_pose.pose.orientation.w = quat.getW();
         relative_pose.pose.position.x = 0.0;
         relative_pose.pose.position.y = 0.0;
         relative_pose.pose.position.z = 0.0;
+        ROS_INFO("Readed rotXdeg: %lf", rotXdeg);
+        ROS_INFO("Position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
+        ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
     }
-    else if(!getParam(action_name, skill_name, "traXmm", traXmm) )
+    else if( getParam(action_name, skill_name, "traXmm", traXmm) )
     {
         relative_pose.pose.position.x = traXmm/1000;
         relative_pose.pose.position.y = 0.0;
@@ -313,8 +322,11 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         relative_pose.pose.orientation.y = 0.0;
         relative_pose.pose.orientation.z = 0.0;
         relative_pose.pose.orientation.w = 1.0;
+        ROS_INFO("Readed traXmm: %lf", traXmm);
+        ROS_INFO("Position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
+        ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
     }
-    else if(!getParam(action_name, skill_name, "traYmm", traYmm) )
+    else if( getParam(action_name, skill_name, "traYmm", traYmm) )
     {
         relative_pose.pose.position.x = 0.0;
         relative_pose.pose.position.y = traYmm/1000;
@@ -323,8 +335,11 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         relative_pose.pose.orientation.y = 0.0;
         relative_pose.pose.orientation.z = 0.0;
         relative_pose.pose.orientation.w = 1.0;
+        ROS_INFO("Readed traYmm: %lf", traYmm);
+        ROS_INFO("Position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
+        ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
     }
-    else if(!getParam(action_name, skill_name, "traZmm", traZmm) )
+    else if( getParam(action_name, skill_name, "traZmm", traZmm) )
     {
         relative_pose.pose.position.x = 0.0;
         relative_pose.pose.position.y = 0.0;
@@ -333,6 +348,9 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         relative_pose.pose.orientation.y = 0.0;
         relative_pose.pose.orientation.z = 0.0;
         relative_pose.pose.orientation.w = 1.0;
+        ROS_INFO("Readed traZmm: %lf", traZmm);
+        ROS_INFO("Position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
+        ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
     }
     else
     {
@@ -351,6 +369,7 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
             relative_pose.pose.position.x = position.at(0);
             relative_pose.pose.position.y = position.at(1);
             relative_pose.pose.position.z = position.at(2);
+            ROS_INFO("Readed position: [%lf,%lf,%lf]", relative_pose.pose.position.x, relative_pose.pose.position.y, relative_pose.pose.position.z);
         }
         if ( !getParam(action_name, skill_name, "orientation", orientation) )
         {
@@ -368,6 +387,7 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
             relative_pose.pose.orientation.y = orientation.at(1);
             relative_pose.pose.orientation.z = orientation.at(2);
             relative_pose.pose.orientation.w = orientation.at(3);
+            ROS_INFO("Readed orientation: [%lf,%lf,%lf,%lf]", relative_pose.pose.orientation.x, relative_pose.pose.orientation.y, relative_pose.pose.orientation.z, relative_pose.pose.orientation.w);
         }
     }
     if ( !getParam(action_name, skill_name, "frame", relative_pose.header.frame_id) )
@@ -386,7 +406,12 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         else
         {
             target_linear_velocity = vel / 1000;
+            ROS_INFO("Readed linear_velocity_mm_s: %lf", vel);
         }
+    }
+    else
+    {
+        ROS_INFO("Readed linear_velocity_m_s: %lf", target_linear_velocity);
     }
     if ( !getParam(action_name, skill_name, "angular_velocity_rad_s", target_angular_velocity) )
     {
@@ -398,8 +423,14 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         }
         else
         {
-            target_linear_velocity = vel*pi_/180;
+            target_angular_velocity = vel*pi_/180;
+            ROS_INFO("Readed angular_velocity_deg_s: %lf", vel);
+            ROS_INFO("Angular_velocity_rad_s: %lf", target_angular_velocity);
         }
+    }
+    else
+    {
+        ROS_INFO("Readed angular_velocity_rad_s: %lf", target_angular_velocity);
     }
 
     if ( !changeConfig(skill_type) )
@@ -411,6 +442,11 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
     rel_move_goal.goal.target_linear_velocity = target_linear_velocity;
     rel_move_goal.goal.relative_pose = relative_pose;
 
+    ROS_INFO("Goal:");
+    ROS_INFO("Frame: %s", rel_move_goal.goal.relative_pose.header.frame_id.c_str());
+    ROS_INFO("Position: [%lf,%lf,%lf]", rel_move_goal.goal.relative_pose.pose.position.x, rel_move_goal.goal.relative_pose.pose.position.y, rel_move_goal.goal.relative_pose.pose.position.z);
+    ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", rel_move_goal.goal.relative_pose.pose.orientation.x, rel_move_goal.goal.relative_pose.pose.orientation.y, rel_move_goal.goal.relative_pose.pose.orientation.z, rel_move_goal.goal.relative_pose.pose.orientation.w);
+    ROS_INFO("Velocity: lin %lf, rot %lf", rel_move_goal.goal.target_linear_velocity, rel_move_goal.goal.target_angular_velocity);
     relative_move_action_->waitForServer();
     relative_move_action_->sendGoalAndWait(rel_move_goal.goal);
 
