@@ -501,19 +501,60 @@ int SkillsExec::simpleTouch(const std::string &action_name, const std::string &s
         ROS_WARN("The parameter %s/%s/wrench_deadband is not setted", action_name.c_str(), skill_name.c_str());
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
-    ROS_INFO("%s-> target_frame: %s", skill_name.c_str(), target_frame.c_str());
-    ROS_INFO("%s-> goal_twist_frame: %s", skill_name.c_str(), goal_twist_frame.c_str());
-    ROS_INFO("%s-> goal_twist: [%lf,%lf,%lf,%lf,%lf,%lf]", skill_name.c_str(), goal_twist.at(0), goal_twist.at(1), goal_twist.at(2), goal_twist.at(3), goal_twist.at(4), goal_twist.at(5));
-    if ( target_wrench.size() == 1 )
+    ROS_INFO("/%s/%s-> target_frame: %s", action_name.c_str(), skill_name.c_str(), target_frame.c_str());
+    ROS_INFO("/%s/%s-> goal_twist_frame: %s", action_name.c_str(), skill_name.c_str(), goal_twist_frame.c_str());
+
+    if ( goal_twist.size() == 1)
     {
-        ROS_INFO("%s-> target_wrench: %lf", skill_name.c_str(), target_wrench.at(0));
+        ROS_INFO("/%s/%s-> goal_twist: %lf", action_name.c_str(), skill_name.c_str(), goal_twist.at(0));
     }
     else if ( target_wrench.size() == 6 )
     {
-        ROS_INFO("%s-> target_wrench: [%lf,%lf,%lf,%lf,%lf,%lf]", skill_name.c_str(), target_wrench.at(0), target_wrench.at(1), target_wrench.at(2), target_wrench.at(3), target_wrench.at(4), target_wrench.at(5));
+        ROS_INFO("/%s/%s-> goal_twist: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), goal_twist.at(0), goal_twist.at(1), goal_twist.at(2), goal_twist.at(3), goal_twist.at(4), goal_twist.at(5));
     }
-    ROS_INFO("%s-> wrench_toll: [%lf,%lf,%lf,%lf,%lf,%lf]",     skill_name.c_str(), wrench_toll.at(0), wrench_toll.at(1), wrench_toll.at(2), wrench_toll.at(3), wrench_toll.at(4), wrench_toll.at(5));
-    ROS_INFO("%s-> wrench_deadband: [%lf,%lf,%lf,%lf,%lf,%lf]", skill_name.c_str(), wrench_deadband.at(0), wrench_deadband.at(1), wrench_deadband.at(2), wrench_deadband.at(3), wrench_deadband.at(4), wrench_deadband.at(5));
+    else
+    {
+        ROS_ERROR("/%s/%s-> goal_twist has wrong size", action_name.c_str(), skill_name.c_str());
+    }
+
+    if ( target_wrench.size() == 1 )
+    {
+        ROS_INFO("/%s/%s-> target_wrench: %lf", action_name.c_str(), skill_name.c_str(), target_wrench.at(0));
+    }
+    else if ( target_wrench.size() == 6 )
+    {
+        ROS_INFO("/%s/%s-> target_wrench: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), target_wrench.at(0), target_wrench.at(1), target_wrench.at(2), target_wrench.at(3), target_wrench.at(4), target_wrench.at(5));
+    }
+    else
+    {
+        ROS_ERROR("/%s/%s-> target_wrench has wrong size", action_name.c_str(), skill_name.c_str());
+    }
+
+    if ( wrench_deadband.size() == 1 )
+    {
+        ROS_INFO("/%s/%s-> wrench_deadband: %lf", action_name.c_str(), skill_name.c_str(), wrench_deadband.at(0));
+    }
+    else if ( wrench_deadband.size() == 6 )
+    {
+        ROS_INFO("/%s/%s-> wrench_deadband: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), wrench_deadband.at(0), wrench_deadband.at(1), wrench_deadband.at(2), wrench_deadband.at(3), wrench_deadband.at(4), wrench_deadband.at(5));
+    }
+    else
+    {
+        ROS_ERROR("/%s/%s-> wrench_deadband has wrong size", action_name.c_str(), skill_name.c_str());
+    }
+
+    if ( wrench_toll.size() == 1 )
+    {
+        ROS_INFO("/%s/%s-> wrench_toll: %lf", action_name.c_str(), skill_name.c_str(), wrench_toll.at(0));
+    }
+    else if ( wrench_toll.size() == 6 )
+    {
+        ROS_INFO("/%s/%s-> wrench_toll: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), wrench_toll.at(0), wrench_toll.at(1), wrench_toll.at(2), wrench_toll.at(3), wrench_toll.at(4), wrench_toll.at(5));
+    }
+    else
+    {
+        ROS_ERROR("/%s/%s-> wrench_toll has wrong size", action_name.c_str(), skill_name.c_str());
+    }
 
     ROS_WARN("Change configuration: %s", skill_type.c_str());
 
