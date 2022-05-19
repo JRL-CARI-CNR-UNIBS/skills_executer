@@ -5,8 +5,8 @@
 #include <skills_executer_msgs/SkillExecution.h>
 #include <actionlib/client/simple_action_client.h>
 #include <configuration_msgs/StartConfiguration.h>
-#include <simple_touch_controller_msgs/simpleTouchAction.h>
-#include <simple_touch_controller_msgs/simpleTouchGoal.h>
+#include <simple_touch_controller_msgs/SimpleTouchAction.h>
+#include <simple_touch_controller_msgs/SimpleTouchActionGoal.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/JointState.h>
 #include <manipulation_msgs/JobExecution.h>
@@ -43,7 +43,7 @@ private:
     ros::NodeHandle n_;
     ros::ServiceServer skill_exec_srv_;
     ros::ServiceClient start_config_clnt_;
-    std::shared_ptr<actionlib::SimpleActionClient<simple_touch_controller_msgs::simpleTouchAction>> touch_action_;
+    std::shared_ptr<actionlib::SimpleActionClient<simple_touch_controller_msgs::SimpleTouchAction>> touch_action_;
     std::shared_ptr<actionlib::SimpleActionClient<relative_cartesian_controller_msgs::RelativeMoveAction>> relative_move_action_;
     ros::Publisher twist_pub_;
     ros::Publisher gripper_move_pub_;

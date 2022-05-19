@@ -15,7 +15,7 @@ SkillsExec::SkillsExec(const ros::NodeHandle & n) : n_(n)
     start_config_clnt_.waitForExistence();
     ROS_WARN("Connection ok");   
 
-    touch_action_         = std::make_shared<actionlib::SimpleActionClient<simple_touch_controller_msgs::simpleTouchAction>>("simple_touch", true);
+    touch_action_         = std::make_shared<actionlib::SimpleActionClient<simple_touch_controller_msgs::SimpleTouchAction>>("simple_touch", true);
     relative_move_action_ = std::make_shared<actionlib::SimpleActionClient<relative_cartesian_controller_msgs::RelativeMoveAction>>("relative_move", true);
     screw_accuracy_ = 0.1;
 }
@@ -437,18 +437,18 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
         return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
 
 
-    relative_cartesian_controller_msgs::RelativeMoveActionGoal rel_move_goal;
-    rel_move_goal.goal.target_angular_velocity = target_angular_velocity;
-    rel_move_goal.goal.target_linear_velocity = target_linear_velocity;
-    rel_move_goal.goal.relative_pose = relative_pose;
+    relative_cartesian_controller_msgs::RelativeMoveGoal rel_move_goal;
+    rel_move_goal.target_angular_velocity = target_angular_velocity;
+    rel_move_goal.target_linear_velocity = target_linear_velocity;
+    rel_move_goal.relative_pose = relative_pose;
 
     ROS_INFO("Goal:");
-    ROS_INFO("Frame: %s", rel_move_goal.goal.relative_pose.header.frame_id.c_str());
-    ROS_INFO("Position: [%lf,%lf,%lf]", rel_move_goal.goal.relative_pose.pose.position.x, rel_move_goal.goal.relative_pose.pose.position.y, rel_move_goal.goal.relative_pose.pose.position.z);
-    ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", rel_move_goal.goal.relative_pose.pose.orientation.x, rel_move_goal.goal.relative_pose.pose.orientation.y, rel_move_goal.goal.relative_pose.pose.orientation.z, rel_move_goal.goal.relative_pose.pose.orientation.w);
-    ROS_INFO("Velocity: lin %lf, rot %lf", rel_move_goal.goal.target_linear_velocity, rel_move_goal.goal.target_angular_velocity);
+    ROS_INFO("Frame: %s", rel_move_goal.relative_pose.header.frame_id.c_str());
+    ROS_INFO("Position: [%lf,%lf,%lf]", rel_move_goal.relative_pose.pose.position.x, rel_move_goal.relative_pose.pose.position.y, rel_move_goal.relative_pose.pose.position.z);
+    ROS_INFO("Orientation: [%lf,%lf,%lf,%lf]", rel_move_goal.relative_pose.pose.orientation.x, rel_move_goal.relative_pose.pose.orientation.y, rel_move_goal.relative_pose.pose.orientation.z, rel_move_goal.relative_pose.pose.orientation.w);
+    ROS_INFO("Velocity: lin %lf, rot %lf", rel_move_goal.target_linear_velocity, rel_move_goal.target_angular_velocity);
     relative_move_action_->waitForServer();
-    relative_move_action_->sendGoalAndWait(rel_move_goal.goal);
+    relative_move_action_->sendGoalAndWait(rel_move_goal);
 
     if ( !changeConfig(watch_config_) )
         return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
@@ -459,56 +459,38 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
 int SkillsExec::simpleTouch(const std::string &action_name, const std::string &skill_name)
 {
     std::string         skill_type;
-    std::string         target_frame;
     std::string         goal_twist_frame;
     std::vector<double> goal_twist;
-    std::vector<double> target_wrench;
-    std::vector<double> wrench_toll;
-    std::vector<double> wrench_deadband;
-    bool  reset_sensor;
+
+    double target_force;
+    bool   relative_target;
+    double release;
+    int    release_condition;
+
+    int version;
+
     if (!getParam(action_name, skill_name, "skill_type", skill_type) )
     {
         ROS_WARN("The parameter %s/%s/skill_type is not setted", action_name.c_str(), skill_name.c_str());
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
-    if (!getParam(action_name, skill_name, "target_frame", target_frame) )
-    {
-        ROS_WARN("The parameter %s/%s/target_frame is not setted", action_name.c_str(), skill_name.c_str());
-        return skills_executer_msgs::SkillExecutionResponse::NoParam;
-    }
+    ROS_INFO("/%s/%s-> skill_type: %s", action_name.c_str(), skill_name.c_str(), skill_type.c_str());
     if (!getParam(action_name, skill_name, "goal_twist_frame", goal_twist_frame))
     {
         ROS_WARN("The parameter %s/%s/goal_twist_frame is not setted", action_name.c_str(), skill_name.c_str());
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
+    ROS_INFO("/%s/%s-> goal_twist_frame: %s", action_name.c_str(), skill_name.c_str(), goal_twist_frame.c_str());
     if (!getParam(action_name, skill_name, "goal_twist", goal_twist))
     {
         ROS_WARN("The parameter %s/%s/goal_twist is not setted", action_name.c_str(), skill_name.c_str());
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
-    if (!getParam(action_name, skill_name, "target_wrench", target_wrench))
-    {
-        ROS_WARN("The parameter %s/%s/target_wrench is not setted", action_name.c_str(), skill_name.c_str());
-        return skills_executer_msgs::SkillExecutionResponse::NoParam;
-    }
-    if (!getParam(action_name, skill_name, "wrench_toll", wrench_toll))
-    {
-        ROS_WARN("The parameter %s/%s/wrench_toll is not setted", action_name.c_str(), skill_name.c_str());
-        return skills_executer_msgs::SkillExecutionResponse::NoParam;
-    }
-    if (!getParam(action_name, skill_name, "wrench_deadband", wrench_deadband))
-    {
-        ROS_WARN("The parameter %s/%s/wrench_deadband is not setted", action_name.c_str(), skill_name.c_str());
-        return skills_executer_msgs::SkillExecutionResponse::NoParam;
-    }
-    ROS_INFO("/%s/%s-> target_frame: %s", action_name.c_str(), skill_name.c_str(), target_frame.c_str());
-    ROS_INFO("/%s/%s-> goal_twist_frame: %s", action_name.c_str(), skill_name.c_str(), goal_twist_frame.c_str());
-
     if ( goal_twist.size() == 1)
     {
         ROS_INFO("/%s/%s-> goal_twist: %lf", action_name.c_str(), skill_name.c_str(), goal_twist.at(0));
     }
-    else if ( target_wrench.size() == 6 )
+    else if ( goal_twist.size() == 6 )
     {
         ROS_INFO("/%s/%s-> goal_twist: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), goal_twist.at(0), goal_twist.at(1), goal_twist.at(2), goal_twist.at(3), goal_twist.at(4), goal_twist.at(5));
     }
@@ -517,44 +499,41 @@ int SkillsExec::simpleTouch(const std::string &action_name, const std::string &s
         ROS_ERROR("/%s/%s-> goal_twist has wrong size", action_name.c_str(), skill_name.c_str());
     }
 
-    if ( target_wrench.size() == 1 )
+    if (!getParam(action_name, skill_name, "target_force", target_force))
     {
-        ROS_INFO("/%s/%s-> target_wrench: %lf", action_name.c_str(), skill_name.c_str(), target_wrench.at(0));
+        ROS_WARN("The parameter %s/%s/target_wrench or target_force are not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
-    else if ( target_wrench.size() == 6 )
+    ROS_INFO("/%s/%s-> target_force: %lf", action_name.c_str(), skill_name.c_str(), target_force);
+
+    if (!getParam(action_name, skill_name, "release", release))
     {
-        ROS_INFO("/%s/%s-> target_wrench: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), target_wrench.at(0), target_wrench.at(1), target_wrench.at(2), target_wrench.at(3), target_wrench.at(4), target_wrench.at(5));
+        ROS_WARN("The parameter %s/%s/release is not setted", action_name.c_str(), skill_name.c_str());
     }
     else
     {
-        ROS_ERROR("/%s/%s-> target_wrench has wrong size", action_name.c_str(), skill_name.c_str());
+        ROS_INFO("/%s/%s-> release: %lf", action_name.c_str(), skill_name.c_str(), release);
     }
 
-    if ( wrench_deadband.size() == 1 )
+    if (!getParam(action_name, skill_name, "release_condition", release_condition))
     {
-        ROS_INFO("/%s/%s-> wrench_deadband: %lf", action_name.c_str(), skill_name.c_str(), wrench_deadband.at(0));
-    }
-    else if ( wrench_deadband.size() == 6 )
-    {
-        ROS_INFO("/%s/%s-> wrench_deadband: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), wrench_deadband.at(0), wrench_deadband.at(1), wrench_deadband.at(2), wrench_deadband.at(3), wrench_deadband.at(4), wrench_deadband.at(5));
+        ROS_WARN("The parameter %s/%s/release_condition is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
     else
     {
-        ROS_ERROR("/%s/%s-> wrench_deadband has wrong size", action_name.c_str(), skill_name.c_str());
+        ROS_INFO("/%s/%s-> release_condition: %d", action_name.c_str(), skill_name.c_str(), release_condition);
     }
 
-    if ( wrench_toll.size() == 1 )
+    if (!getParam(action_name, skill_name, "relative_target", relative_target))
     {
-        ROS_INFO("/%s/%s-> wrench_toll: %lf", action_name.c_str(), skill_name.c_str(), wrench_toll.at(0));
+        ROS_WARN("The parameter %s/%s/relative_target is not setted", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
-    else if ( wrench_toll.size() == 6 )
-    {
-        ROS_INFO("/%s/%s-> wrench_toll: [%lf,%lf,%lf,%lf,%lf,%lf]", action_name.c_str(), skill_name.c_str(), wrench_toll.at(0), wrench_toll.at(1), wrench_toll.at(2), wrench_toll.at(3), wrench_toll.at(4), wrench_toll.at(5));
-    }
+    if (relative_target)
+        ROS_INFO("/%s/%s-> relative_target: true", action_name.c_str(), skill_name.c_str());
     else
-    {
-        ROS_ERROR("/%s/%s-> wrench_toll has wrong size", action_name.c_str(), skill_name.c_str());
-    }
+        ROS_INFO("/%s/%s-> relative_target: false", action_name.c_str(), skill_name.c_str());
 
     ROS_WARN("Change configuration: %s", skill_type.c_str());
 
@@ -563,13 +542,14 @@ int SkillsExec::simpleTouch(const std::string &action_name, const std::string &s
 
     ROS_WARN("Execution Simple Touch..");
 
-    simple_touch_controller_msgs::simpleTouchGoal goal_touch;
-    goal_touch.target_wrench_frame = target_frame;
-    goal_touch.goal_twist_frame = goal_twist_frame;
+    simple_touch_controller_msgs::SimpleTouchGoal goal_touch;
+
     goal_touch.goal_twist = goal_twist;
-    goal_touch.target_wrench = target_wrench;
-    goal_touch.wrench_toll = wrench_toll;
-    goal_touch.wrench_deadband = wrench_deadband;
+    goal_touch.goal_twist_frame = goal_twist_frame;
+    goal_touch.relative_target = relative_target;
+    goal_touch.release = release;
+    goal_touch.release_condition = release_condition;
+    goal_touch.target_force = target_force;
 
     touch_action_->waitForServer();
     touch_action_->sendGoalAndWait(goal_touch);
