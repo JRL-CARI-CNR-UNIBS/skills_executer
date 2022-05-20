@@ -58,9 +58,9 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
         res.result = robotiqGripperMove(req.action_name, req.skill_name);
         ROS_INFO("parallel2fGripperMove result: %d", res.result);
     }
-    else if ( !skill_type.compare(ur_dashboard_control_) )
+    else if ( !skill_type.compare(ur_load_program_) )
     {
-        res.result = urDashboardControl(req.action_name, req.skill_name);
+        res.result = urLoadProgram(req.action_name, req.skill_name);
         ROS_INFO("robotiqDashboardControl result: %d", res.result);
     }
     else
@@ -74,25 +74,26 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
 
 }
 
-int SkillsExec::urDashboardControl(const std::string &action_name, const std::string &skill_name)
+int SkillsExec::urLoadProgram(const std::string &action_name, const std::string &skill_name)
 {
   std::string hw_name;
-  if (!getParam(action_name, skill_name, "ur_hw_name", hw_name))
+  if (not getParam(action_name, skill_name, "ur_hw_name", hw_name))
   {
       ROS_WARN("The parameter %s/%s/ur_hw_name is not set", action_name.c_str(), skill_name.c_str());
       return skills_executer_msgs::SkillExecutionResponse::NoParam;
   }
   std::vector<std::string> programs;
-  if (!getParam(action_name, skill_name, "programs_to_run", programs))
+  if (not getParam(action_name, skill_name, "programs", programs))
   {
       ROS_WARN("The parameter %s/%s/program_name is not set", action_name.c_str(), skill_name.c_str());
       return skills_executer_msgs::SkillExecutionResponse::NoParam;
   }
+  bool play;
+  if (not getParam(action_name, skill_name, "play", play))
+    play = true;
 
   ros::ServiceClient load_clnt = n_.serviceClient<ur_dashboard_msgs::Load>(hw_name+"/dashboard/load_program");
   ros::ServiceClient play_clnt = n_.serviceClient<std_srvs::Trigger>(hw_name+"/dashboard/play");
-
-  //Valuta estensioni ad altri comandi dashboard
 
   ROS_WARN("Waiting for %s", load_clnt.getService().c_str());
   load_clnt.waitForExistence();
@@ -108,7 +109,7 @@ int SkillsExec::urDashboardControl(const std::string &action_name, const std::st
 
     load_srv.request.filename = program;
 
-    if(!load_clnt.call(load_srv) )
+    if(not load_clnt.call(load_srv) )
     {
         ROS_ERROR("Unable to load program: %s",load_srv.request.filename.c_str());
         return skills_executer_msgs::SkillExecutionResponse::Error;
@@ -121,18 +122,21 @@ int SkillsExec::urDashboardControl(const std::string &action_name, const std::st
 
     ROS_WARN("Program %s loaded",load_srv.request.filename.c_str());
 
-    if(!play_clnt.call(play_srv) )
+    if(play)
     {
-        ROS_ERROR("Unable to play program: %s",load_srv.request.filename.c_str());
-        return skills_executer_msgs::SkillExecutionResponse::Error;
-    }
-    else
-    {
-      if(not play_srv.response.success)
-        return skills_executer_msgs::SkillExecutionResponse::Fail;
-    }
+      if(not play_clnt.call(play_srv) )
+      {
+          ROS_ERROR("Unable to play program: %s",load_srv.request.filename.c_str());
+          return skills_executer_msgs::SkillExecutionResponse::Error;
+      }
+      else
+      {
+        if(not play_srv.response.success)
+          return skills_executer_msgs::SkillExecutionResponse::Fail;
+      }
 
-    ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
+      ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
+    }
   }
 
   return skills_executer_msgs::SkillExecutionResponse::Success;

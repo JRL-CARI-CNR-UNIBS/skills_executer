@@ -28,7 +28,7 @@ public:
                          skills_executer_msgs::SkillExecution::Response &res);
 
     bool changeConfig(std::string config_name);
-    int urDashboardControl(const std::string &action_name, const std::string &skill_name);
+    int urLoadProgram(const std::string &action_name, const std::string &skill_name);
     int parallel2fGripperMove  (const std::string &action_name, const std::string &skill_name);
     int robotiqGripperMove     (const std::string &action_name, const std::string &skill_name);
     int cartVel                (const std::string &action_name, const std::string &skill_name);
@@ -56,7 +56,7 @@ private:
     std::string simple_touch_type_ = "simple_touch";
     std::string parallel_2f_gripper_move_type_ = "parallel_2f_gripper_move";
     std::string robotiq_gripper_move_type_ = "robotiq_gripper_move";
-    std::string ur_dashboard_control_ = "ur_dashboard_control";
+    std::string ur_load_program_ = "ur_load_program_";
 
     std::string watch_config_        = "watch";
 };
