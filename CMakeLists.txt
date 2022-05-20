@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   manipulation_msgs
   behaviortree_cpp_v3
   relative_cartesian_controller_msgs
+  ur_dashboard_msgs
 )
 
 catkin_package(
@@ -22,6 +23,7 @@ catkin_package(
   CATKIN_DEPENDS roscpp
                  rospy
                  std_msgs
+                 ur_dashboard_msgs
   DEPENDS
 )
 

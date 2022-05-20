@@ -58,6 +58,11 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
         res.result = robotiqGripperMove(req.action_name, req.skill_name);
         ROS_INFO("parallel2fGripperMove result: %d", res.result);
     }
+    else if ( !skill_type.compare(ur_dashboard_control_) )
+    {
+        res.result = urDashboardControl(req.action_name, req.skill_name);
+        ROS_INFO("robotiqDashboardControl result: %d", res.result);
+    }
     else
     {
         ROS_INFO("result: NoSkillType");
@@ -67,6 +72,70 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
     ROS_INFO("Return true");
     return true;
 
+}
+
+int SkillsExec::urDashboardControl(const std::string &action_name, const std::string &skill_name)
+{
+  std::string hw_name;
+  if (!getParam(action_name, skill_name, "ur_hw_name", hw_name))
+  {
+      ROS_WARN("The parameter %s/%s/ur_hw_name is not set", action_name.c_str(), skill_name.c_str());
+      return skills_executer_msgs::SkillExecutionResponse::NoParam;
+  }
+  std::vector<std::string> programs;
+  if (!getParam(action_name, skill_name, "programs_to_run", programs))
+  {
+      ROS_WARN("The parameter %s/%s/program_name is not set", action_name.c_str(), skill_name.c_str());
+      return skills_executer_msgs::SkillExecutionResponse::NoParam;
+  }
+
+  ros::ServiceClient load_clnt = n_.serviceClient<ur_dashboard_msgs::Load>(hw_name+"/dashboard/load_program");
+  ros::ServiceClient play_clnt = n_.serviceClient<std_srvs::Trigger>(hw_name+"/dashboard/play");
+
+  //Valuta estensioni ad altri comandi dashboard
+
+  ROS_WARN("Waiting for %s", load_clnt.getService().c_str());
+  load_clnt.waitForExistence();
+  ROS_WARN("Waiting for %s", play_clnt.getService().c_str());
+  play_clnt.waitForExistence();
+
+  ROS_WARN("Connection ok");
+
+  for(const std::string& program:programs)
+  {
+    ur_dashboard_msgs::Load load_srv;
+    std_srvs::Trigger       play_srv;
+
+    load_srv.request.filename = program;
+
+    if(!load_clnt.call(load_srv) )
+    {
+        ROS_ERROR("Unable to load program: %s",load_srv.request.filename.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::Error;
+    }
+    else
+    {
+      if(not load_srv.response.success)
+        return skills_executer_msgs::SkillExecutionResponse::Fail;
+    }
+
+    ROS_WARN("Program %s loaded",load_srv.request.filename.c_str());
+
+    if(!play_clnt.call(play_srv) )
+    {
+        ROS_ERROR("Unable to play program: %s",load_srv.request.filename.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::Error;
+    }
+    else
+    {
+      if(not play_srv.response.success)
+        return skills_executer_msgs::SkillExecutionResponse::Fail;
+    }
+
+    ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
+  }
+
+  return skills_executer_msgs::SkillExecutionResponse::Success;
 }
 
 int SkillsExec::parallel2fGripperMove(const std::string &action_name, const std::string &skill_name)
