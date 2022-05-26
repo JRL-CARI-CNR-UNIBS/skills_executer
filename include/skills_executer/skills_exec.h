@@ -15,6 +15,8 @@
 #include <relative_cartesian_controller_msgs/RelativeMoveGoal.h>
 #include <tf/tf.h>
 #include <ur_dashboard_msgs/Load.h>
+#include <ur_dashboard_msgs/GetLoadedProgram.h>
+#include <ur_dashboard_msgs/GetProgramState.h>
 #include <std_srvs/Trigger.h>
 
 namespace skills_executer
@@ -29,12 +31,15 @@ public:
 
     bool changeConfig(std::string config_name);
     int urLoadProgram(const std::string &action_name, const std::string &skill_name);
+    int urConnectDashboard(const std::string &action_name, const std::string &skill_name);
     int parallel2fGripperMove  (const std::string &action_name, const std::string &skill_name);
     int robotiqGripperMove     (const std::string &action_name, const std::string &skill_name);
     int cartVel                (const std::string &action_name, const std::string &skill_name);
     int cartPos                (const std::string &action_name, const std::string &skill_name);
     int simpleTouch            (const std::string &action_name, const std::string &skill_name);
     int reset_ur10e_ft_sensor  ();
+    int loadLocationsByParam();
+    int touchBoard(const std::string &action_name, const std::string &skill_name);
 
     template<typename T> bool getParam(const std::string &action_name, const std::string &skill_name, const std::string &param_name, T &param_value);
 
@@ -56,7 +61,9 @@ private:
     std::string simple_touch_type_ = "simple_touch";
     std::string parallel_2f_gripper_move_type_ = "parallel_2f_gripper_move";
     std::string robotiq_gripper_move_type_ = "robotiq_gripper_move";
-    std::string ur_load_program_ = "ur_load_program_";
+    std::string ur_load_program_ = "ur_load_program";
+    std::string ur_connect_dashboard_ = "ur_connect_dashboard";
+    std::string load_locations_by_param_ = "load_locations_by_param";
 
     std::string watch_config_        = "watch";
 };

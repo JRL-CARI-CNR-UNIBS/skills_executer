@@ -13,7 +13,7 @@ SkillsExec::SkillsExec(const ros::NodeHandle & n) : n_(n)
     start_config_clnt_ = n_.serviceClient<configuration_msgs::StartConfiguration>("/configuration_manager/start_configuration");
     ROS_WARN("Waiting for %s", start_config_clnt_.getService().c_str() );
     start_config_clnt_.waitForExistence();
-    ROS_WARN("Connection ok");   
+    ROS_WARN("Connection ok");
 
     touch_action_         = std::make_shared<actionlib::SimpleActionClient<simple_touch_controller_msgs::SimpleTouchAction>>("simple_touch", true);
     relative_move_action_ = std::make_shared<actionlib::SimpleActionClient<relative_cartesian_controller_msgs::RelativeMoveAction>>("relative_move", true);
@@ -61,7 +61,12 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
     else if ( !skill_type.compare(ur_load_program_) )
     {
         res.result = urLoadProgram(req.action_name, req.skill_name);
-        ROS_INFO("robotiqDashboardControl result: %d", res.result);
+        ROS_INFO("urLoadProgram result: %d", res.result);
+    }
+    else if ( !skill_type.compare(ur_connect_dashboard_) )
+    {
+        res.result = urConnectDashboard(req.action_name, req.skill_name);
+        ROS_INFO("urConnectDashboard result: %d", res.result);
     }
     else
     {
@@ -76,71 +81,176 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
 
 int SkillsExec::urLoadProgram(const std::string &action_name, const std::string &skill_name)
 {
-  std::string hw_name;
-  if (not getParam(action_name, skill_name, "ur_hw_name", hw_name))
-  {
-      ROS_WARN("The parameter %s/%s/ur_hw_name is not set", action_name.c_str(), skill_name.c_str());
-      return skills_executer_msgs::SkillExecutionResponse::NoParam;
-  }
-  std::vector<std::string> programs;
-  if (not getParam(action_name, skill_name, "programs", programs))
-  {
-      ROS_WARN("The parameter %s/%s/program_name is not set", action_name.c_str(), skill_name.c_str());
-      return skills_executer_msgs::SkillExecutionResponse::NoParam;
-  }
-  bool play;
-  if (not getParam(action_name, skill_name, "play", play))
-    play = true;
-
-  ros::ServiceClient load_clnt = n_.serviceClient<ur_dashboard_msgs::Load>(hw_name+"/dashboard/load_program");
-  ros::ServiceClient play_clnt = n_.serviceClient<std_srvs::Trigger>(hw_name+"/dashboard/play");
-
-  ROS_WARN("Waiting for %s", load_clnt.getService().c_str());
-  load_clnt.waitForExistence();
-  ROS_WARN("Waiting for %s", play_clnt.getService().c_str());
-  play_clnt.waitForExistence();
-
-  ROS_WARN("Connection ok");
-
-  for(const std::string& program:programs)
-  {
-    ur_dashboard_msgs::Load load_srv;
-    std_srvs::Trigger       play_srv;
-
-    load_srv.request.filename = program;
-
-    if(not load_clnt.call(load_srv) )
+    std::string hw_name;
+    if (not getParam(action_name, skill_name, "ur_hw_name", hw_name))
     {
-        ROS_ERROR("Unable to load program: %s",load_srv.request.filename.c_str());
+        ROS_WARN("The parameter %s/%s/ur_hw_name is not set", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+    std::vector<std::string> programs;
+    if (not getParam(action_name, skill_name, "programs", programs))
+    {
+        ROS_WARN("The parameter %s/%s/programs is not set", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+    bool play;
+    if (not getParam(action_name, skill_name, "play", play))
+        play = true;
+    double pause;
+
+    ros::ServiceClient load_clnt = n_.serviceClient<ur_dashboard_msgs::Load>("/"+hw_name+"/dashboard/load_program");
+    ros::ServiceClient is_loaded_clnt = n_.serviceClient<ur_dashboard_msgs::GetLoadedProgram>("/"+hw_name+"/dashboard/get_loaded_program");
+    ros::ServiceClient status_clnt = n_.serviceClient<ur_dashboard_msgs::GetProgramState>("/"+hw_name+"/dashboard/program_state");
+    ros::ServiceClient play_clnt = n_.serviceClient<std_srvs::Trigger>("/"+hw_name+"/dashboard/play");
+
+
+    ROS_WARN("Waiting for %s", load_clnt.getService().c_str());
+    load_clnt.waitForExistence();
+    ROS_WARN("Waiting for %s", is_loaded_clnt.getService().c_str());
+    is_loaded_clnt.waitForExistence();
+    ROS_WARN("Waiting for %s", play_clnt.getService().c_str());
+    play_clnt.waitForExistence();
+    ROS_WARN("Waiting for %s", status_clnt.getService().c_str());
+    status_clnt.waitForExistence();
+
+    ROS_WARN("Connection ok");
+
+    for(const std::string& program:programs)
+    {
+        ur_dashboard_msgs::Load load_srv;
+        std_srvs::Trigger       play_srv;
+        ur_dashboard_msgs::GetLoadedProgram is_loaded_srv;
+        ur_dashboard_msgs::GetProgramState status_srv;
+
+        load_srv.request.filename = program;
+
+        if(not load_clnt.call(load_srv) )
+        {
+            ROS_ERROR("Unable to load program: %s",load_srv.request.filename.c_str());
+            return skills_executer_msgs::SkillExecutionResponse::Error;
+        }
+        else
+        {
+            if(not load_srv.response.success)
+            {
+                ROS_ERROR("load_srv failed: %s",load_srv.request.filename.c_str());
+                return skills_executer_msgs::SkillExecutionResponse::Fail;
+            }
+        }
+
+        do
+        {
+            if(not is_loaded_clnt.call(is_loaded_srv) )
+            {
+                ROS_ERROR("Unable to get loaded program");
+                return skills_executer_msgs::SkillExecutionResponse::Error;
+            }
+            else
+            {
+                if(not is_loaded_srv.response.success)
+                {
+                    ROS_ERROR("is_loaded_srv failed");
+                    return skills_executer_msgs::SkillExecutionResponse::Fail;
+                }
+            }
+            ros::Duration(0.01).sleep();
+
+            ROS_ERROR_STREAM("programma carico: "<<is_loaded_srv.response.program_name);
+            ROS_ERROR_STREAM("progrqamma voluto: "<<program);
+            ROS_ERROR("---------");
+
+        }while(is_loaded_srv.response.program_name.compare(program) != 0);
+
+        ROS_WARN("Program %s loaded",load_srv.request.filename.c_str());
+
+        ros::Duration(0.5).sleep();
+
+        if(play)
+        {
+            if(not play_clnt.call(play_srv) )
+            {
+                ROS_ERROR("Unable to play program: %s",load_srv.request.filename.c_str());
+                return skills_executer_msgs::SkillExecutionResponse::Error;
+            }
+            else
+            {
+                if(not play_srv.response.success)
+                {
+                    ROS_ERROR("play_srv failed: %s, message: %s",load_srv.request.filename.c_str(),play_srv.response.message);
+                    return skills_executer_msgs::SkillExecutionResponse::Fail;
+                }
+            }
+
+            ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
+
+            do
+            {
+                if(not status_clnt.call(status_srv) )
+                {
+                    ROS_ERROR("Unable to get status program: %s",load_srv.request.filename.c_str());
+                    return skills_executer_msgs::SkillExecutionResponse::Error;
+                }
+                else
+                {
+                    if(not status_srv.response.success)
+                    {
+                        ROS_ERROR("status_srv failed: %s",load_srv.request.filename.c_str());
+                        return skills_executer_msgs::SkillExecutionResponse::Fail;
+                    }
+                }
+                ros::Duration(0.01).sleep();
+
+
+                ROS_ERROR_STREAM("stato programma: "<<status_srv.response.state.state);
+                ROS_ERROR_STREAM("stato voluto: "<<ur_dashboard_msgs::ProgramState::STOPPED);
+                ROS_ERROR("---------");
+
+            }while(status_srv.response.state.state.compare(ur_dashboard_msgs::ProgramState::STOPPED) != 0);
+        }
+    }
+    return skills_executer_msgs::SkillExecutionResponse::Success;
+}
+
+int SkillsExec::urConnectDashboard(const std::string &action_name, const std::string &skill_name)
+{
+    std::string hw_name;
+    if (not getParam(action_name, skill_name, "ur_hw_name", hw_name))
+    {
+        ROS_WARN("The parameter %s/%s/ur_hw_name is not set", action_name.c_str(), skill_name.c_str());
+        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+
+    ros::ServiceClient connect_clnt = n_.serviceClient<std_srvs::Trigger>("/"+hw_name+"/dashboard/connect");
+
+    ROS_WARN("Waiting for %s", connect_clnt.getService().c_str());
+    connect_clnt.waitForExistence();
+
+    ROS_WARN("Connection ok");
+
+    std_srvs::Trigger connect_srv;
+
+    if(not connect_clnt.call(connect_srv) )
+    {
+        ROS_ERROR("Unable to connect to dashboard");
         return skills_executer_msgs::SkillExecutionResponse::Error;
     }
     else
     {
-      if(not load_srv.response.success)
-        return skills_executer_msgs::SkillExecutionResponse::Fail;
+       while(not connect_srv.response.success)
+       {
+           ROS_ERROR("trying to connectto dashboard");
+           ros::Duration(0.01).sleep();
+       }
+
+//        if(not connect_srv.response.success)
+//        {
+//            ROS_ERROR("connect_srv failed");
+//            return skills_executer_msgs::SkillExecutionResponse::Fail;
+//        }
     }
-
-    ROS_WARN("Program %s loaded",load_srv.request.filename.c_str());
-
-    if(play)
-    {
-      if(not play_clnt.call(play_srv) )
-      {
-          ROS_ERROR("Unable to play program: %s",load_srv.request.filename.c_str());
-          return skills_executer_msgs::SkillExecutionResponse::Error;
-      }
-      else
-      {
-        if(not play_srv.response.success)
-          return skills_executer_msgs::SkillExecutionResponse::Fail;
-      }
-
-      ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
-    }
-  }
-
-  return skills_executer_msgs::SkillExecutionResponse::Success;
+    return skills_executer_msgs::SkillExecutionResponse::Success;
 }
+
 
 int SkillsExec::parallel2fGripperMove(const std::string &action_name, const std::string &skill_name)
 {
@@ -197,7 +307,7 @@ int SkillsExec::parallel2fGripperMove(const std::string &action_name, const std:
     gripper_move_msg.header.stamp=ros::Time::now();
     gripper_move_pub_.publish(gripper_move_msg);
 
-//    Inserire la parte che controlla se la skill è andata a buon fine.
+    //    Inserire la parte che controlla se la skill è andata a buon fine.
 
     return skills_executer_msgs::SkillExecutionResponse::Success;
 }
@@ -289,10 +399,10 @@ int SkillsExec::cartVel(const std::string &action_name, const std::string &skill
 
     while (time < move_time)
     {
-      twist_command.header.stamp=ros::Time::now();
-      twist_pub_.publish(twist_command);
-      time = time+0.01;
-      lp.sleep();
+        twist_command.header.stamp=ros::Time::now();
+        twist_pub_.publish(twist_command);
+        time = time+0.01;
+        lp.sleep();
     }
 
     twist_command.twist.linear.x=0.0;
@@ -302,19 +412,19 @@ int SkillsExec::cartVel(const std::string &action_name, const std::string &skill
     twist_command.twist.angular.y=0.0;
     twist_command.twist.angular.z=0.0;
 
-//    time=0.0;
+    //    time=0.0;
 
-//    while (time<0.01)
-//    {
-//      twist_command.header.stamp=ros::Time::now();
-//      twist_pub_.publish(twist_command);
+    //    while (time<0.01)
+    //    {
+    //      twist_command.header.stamp=ros::Time::now();
+    //      twist_pub_.publish(twist_command);
 
-//      ros::Duration(0.001).sleep();
-//      time=time+0.001;
-//    }
+    //      ros::Duration(0.001).sleep();
+    //      time=time+0.001;
+    //    }
 
 
-//    Inserire la parte che controlla se la skill è andata a buon fine.
+    //    Inserire la parte che controlla se la skill è andata a buon fine.
 
     twist_command.header.stamp=ros::Time::now();
     twist_pub_.publish(twist_command);
@@ -342,7 +452,7 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
     {
         double angle = rotZdeg*pi_/180;
         quat.setRPY(0,0,angle);
-//        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,0.0,angle);
+        //        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,0.0,angle);
         relative_pose.pose.orientation.x = quat.getX();
         relative_pose.pose.orientation.y = quat.getY();
         relative_pose.pose.orientation.z = quat.getZ();
@@ -358,7 +468,7 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
     {
         double angle = rotYdeg*pi_/180;
         quat.setRPY(0,angle,0);
-//        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,angle,0.0);
+        //        relative_pose.pose.orientation=tf::createQuaternionFromRPY(0.0,angle,0.0);
         relative_pose.pose.orientation.x = quat.getX();
         relative_pose.pose.orientation.y = quat.getY();
         relative_pose.pose.orientation.z = quat.getZ();
@@ -374,7 +484,7 @@ int SkillsExec::cartPos(const std::string &action_name, const std::string &skill
     {
         double angle = rotXdeg*pi_/180;
         quat.setRPY(angle,0,0);
-//        relative_pose.pose.orientation=tf::createQuaternionFromRPY(angle,0.0,0.0);
+        //        relative_pose.pose.orientation=tf::createQuaternionFromRPY(angle,0.0,0.0);
         relative_pose.pose.orientation.x = quat.getX();
         relative_pose.pose.orientation.y = quat.getY();
         relative_pose.pose.orientation.z = quat.getZ();
@@ -633,6 +743,113 @@ int SkillsExec::simpleTouch(const std::string &action_name, const std::string &s
     return skills_executer_msgs::SkillExecutionResponse::Success;
 }
 
+int touchBoard(const std::string &action_name, const std::string &skill_name)
+{
+//    std::string reference_frame;
+//    if (!getParam(action_name, skill_name, "reference_frame", reference_frame))
+//    {
+//        ROS_WARN("The parameter %s/%s/reference_frame is not setted", action_name.c_str(), skill_name.c_str());
+//        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+//    }
+
+//    double goal_twist;
+//    if (!getParam(action_name, skill_name, "goal_twist", goal_twist))
+//    {
+//        ROS_WARN("The parameter %s/%s/velocity is not setted", action_name.c_str(), skill_name.c_str());
+//        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+//    }
+
+//    double translation;
+//    if (!getParam(action_name, skill_name, "velocity", velocity_touch))
+//    {
+//        ROS_WARN("The parameter %s/%s/velocity is not setted", action_name.c_str(), skill_name.c_str());
+//        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+//    }
+
+//    double target_force;
+//    if (!getParam(action_name, skill_name, "target_force", target_force))
+//    {
+//        ROS_WARN("The parameter %s/%s/target_force is not setted", action_name.c_str(), skill_name.c_str());
+//        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+//    }
+
+//    double release;
+//    if (!getParam(action_name, skill_name, "release", release))
+//    {
+//        ROS_WARN("The parameter %s/%s/release is not setted", action_name.c_str(), skill_name.c_str());
+//        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+//    }
+
+//    int release_condition;
+//    if (!getParam(action_name, skill_name, "release_condition", release_condition))
+//    {
+//        ROS_WARN("The parameter %s/%s/release_condition is not setted", action_name.c_str(), skill_name.c_str());
+//        return skills_executer_msgs::SkillExecutionResponse::NoParam;
+//    }
+
+//    if ( !changeConfig(simple_touch_type_) )
+//        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+//    ROS_WARN("Execution Simple Touch..");
+
+//    simple_touch_controller_msgs::SimpleTouchGoal goal_touch;
+
+//    goal_touch.goal_twist = goal_twist;
+//    goal_touch.goal_twist_frame = reference_frame;
+//    goal_touch.relative_target = true;
+//    goal_touch.release = release;
+//    goal_touch.release_condition = release_condition;
+//    goal_touch.target_force = target_force;
+
+//    touch_action_->waitForServer();
+//    touch_action_->sendGoalAndWait(goal_touch);
+
+//    //SALVA POSA
+
+//    if ( !changeConfig(watch_config_) )
+//        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+
+//    if ( !changeConfig(cart_pos_type_) )
+//        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+
+//    if ( !changeConfig(simple_touch_type_) )
+//        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+//    ROS_WARN("Execution Simple Touch..");
+
+//    simple_touch_controller_msgs::SimpleTouchGoal goal_touch;
+
+//    goal_touch.goal_twist = goal_twist;
+//    goal_touch.goal_twist_frame = reference_frame;
+//    goal_touch.relative_target = true;
+//    goal_touch.release = release;
+//    goal_touch.release_condition = release_condition;
+//    goal_touch.target_force = target_force;
+
+//    touch_action_->waitForServer();
+//    touch_action_->sendGoalAndWait(goal_touch);
+
+
+//    if ( !changeConfig(watch_config_) )
+//        return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
+
+
+
+
+
+
+
+
+
+//    return skills_executer_msgs::SkillExecutionResponse::Success;
+
+    return 0;
+}
+
+
+
 bool SkillsExec::changeConfig(std::string config_name)
 {
     configuration_msgs::StartConfiguration start_config_srv;
@@ -641,19 +858,19 @@ bool SkillsExec::changeConfig(std::string config_name)
 
     if (!start_config_clnt_.call(start_config_srv))
     {
-      ROS_ERROR("Unable to call %s service to set controller %s",start_config_clnt_.getService().c_str(),config_name.c_str());
-      return false;
+        ROS_ERROR("Unable to call %s service to set controller %s",start_config_clnt_.getService().c_str(),config_name.c_str());
+        return false;
     }
 
     if (!start_config_srv.response.ok)
     {
-      ROS_ERROR("Error on service %s response", start_config_clnt_.getService().c_str());
-      return false;
+        ROS_ERROR("Error on service %s response", start_config_clnt_.getService().c_str());
+        return false;
     }
 
     ROS_INFO("Controller %s started.",config_name.c_str());
 
-//    ros::Duration(0.1).sleep();
+    //    ros::Duration(0.1).sleep();
     return true;
 }
 
