@@ -18,6 +18,7 @@
 #include <ur_dashboard_msgs/GetLoadedProgram.h>
 #include <ur_dashboard_msgs/GetProgramState.h>
 #include <std_srvs/Trigger.h>
+#include <ur_msgs/SetIO.h>
 
 namespace skills_executer
 {
@@ -37,6 +38,7 @@ public:
     int cartVel                (const std::string &action_name, const std::string &skill_name);
     int cartPos                (const std::string &action_name, const std::string &skill_name);
     int simpleTouch            (const std::string &action_name, const std::string &skill_name);
+    int active_magnet          (const std::string &action_name, const std::string &skill_name);
     int reset_ur10e_ft_sensor  ();
     int loadLocationsByParam();
     int touchBoard(const std::string &action_name, const std::string &skill_name);
@@ -51,6 +53,7 @@ private:
     ros::NodeHandle n_;
     ros::ServiceServer skill_exec_srv_;
     ros::ServiceClient start_config_clnt_;
+    ros::ServiceClient active_magnet_clnt_;
     std::shared_ptr<actionlib::SimpleActionClient<simple_touch_controller_msgs::SimpleTouchAction>> touch_action_;
     std::shared_ptr<actionlib::SimpleActionClient<relative_cartesian_controller_msgs::RelativeMoveAction>> relative_move_action_;
     ros::Publisher twist_pub_;
@@ -64,6 +67,7 @@ private:
     std::string ur_load_program_ = "ur_load_program";
     std::string ur_connect_dashboard_ = "ur_connect_dashboard";
     std::string load_locations_by_param_ = "load_locations_by_param";
+    std::string active_magnet_type_ = "active_magnet";
 
     std::string watch_config_        = "watch";
 };

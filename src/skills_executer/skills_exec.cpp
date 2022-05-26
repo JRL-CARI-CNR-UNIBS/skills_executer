@@ -15,6 +15,11 @@ SkillsExec::SkillsExec(const ros::NodeHandle & n) : n_(n)
     start_config_clnt_.waitForExistence();
     ROS_WARN("Connection ok");
 
+    active_magnet_clnt_ = n_.serviceClient<ur_msgs::SetIO>("/ur3_hw/set_io");
+    ROS_WARN("Waiting for %s", active_magnet_clnt_.getService().c_str() );
+    active_magnet_clnt_.waitForExistence();
+    ROS_WARN("Connection ok");
+
     touch_action_         = std::make_shared<actionlib::SimpleActionClient<simple_touch_controller_msgs::SimpleTouchAction>>("simple_touch", true);
     relative_move_action_ = std::make_shared<actionlib::SimpleActionClient<relative_cartesian_controller_msgs::RelativeMoveAction>>("relative_move", true);
     screw_accuracy_ = 0.1;
@@ -67,6 +72,11 @@ bool SkillsExec::skillsExecution(skills_executer_msgs::SkillExecution::Request  
     {
         res.result = urConnectDashboard(req.action_name, req.skill_name);
         ROS_INFO("urConnectDashboard result: %d", res.result);
+    }
+    else if ( !skill_type.compare(active_magnet_type_) )
+    {
+        res.result = active_magnet(req.action_name, req.skill_name);
+        ROS_INFO("active_magnet result: %d", res.result);
     }
     else
     {
@@ -740,6 +750,33 @@ int SkillsExec::simpleTouch(const std::string &action_name, const std::string &s
     if ( !changeConfig(watch_config_) )
         return skills_executer_msgs::SkillExecutionResponse::ProblemConfManager;
 
+    return skills_executer_msgs::SkillExecutionResponse::Success;
+}
+
+int SkillsExec::active_magnet(const std::string &action_name, const std::string &skill_name)
+{
+    bool active;
+
+    if ( !getParam(action_name,skill_name,"active",active) )
+    {
+         ROS_WARN("The parameter %s/%s/active is not set", action_name.c_str(), skill_name.c_str());
+         return skills_executer_msgs::SkillExecutionResponse::NoParam;
+    }
+
+    ur_msgs::SetIO active_magnet_srv;
+    active_magnet_srv.request.fun = 1;
+    active_magnet_srv.request.pin = 0;
+
+    if (active)
+        active_magnet_srv.request.state = 1;
+    else
+        active_magnet_srv.request.state = 0;
+
+    if (!active_magnet_clnt_.call(active_magnet_srv))
+    {
+        ROS_ERROR("Unable to call %s service",active_magnet_clnt_.getService().c_str());
+        return skills_executer_msgs::SkillExecutionResponse::Error;
+    }
     return skills_executer_msgs::SkillExecutionResponse::Success;
 }
 

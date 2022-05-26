@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   behaviortree_cpp_v3
   relative_cartesian_controller_msgs
   ur_dashboard_msgs
+  ur_msgs
 )
 
 catkin_package(
