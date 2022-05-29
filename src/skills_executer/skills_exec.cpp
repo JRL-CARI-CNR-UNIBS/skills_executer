@@ -103,6 +103,8 @@ int SkillsExec::urLoadProgram(const std::string &action_name, const std::string 
         ROS_WARN("The parameter %s/%s/programs is not set", action_name.c_str(), skill_name.c_str());
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
+    std::string program_to_exclude = "/programs/control_by_CARI.urp";
+
     bool play;
     if (not getParam(action_name, skill_name, "play", play))
         play = true;
@@ -173,7 +175,7 @@ int SkillsExec::urLoadProgram(const std::string &action_name, const std::string 
 
         ROS_WARN("Program %s loaded",load_srv.request.filename.c_str());
 
-        ros::Duration(0.5).sleep();
+        ros::Duration(0.1).sleep();
 
         if(play)
         {
@@ -193,29 +195,36 @@ int SkillsExec::urLoadProgram(const std::string &action_name, const std::string 
 
             ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
 
-            do
+            ros::Duration(1).sleep();
+
+            if(program.compare(program_to_exclude) == 0)
+                continue;
+            else
             {
-                if(not status_clnt.call(status_srv) )
+                do
                 {
-                    ROS_ERROR("Unable to get status program: %s",load_srv.request.filename.c_str());
-                    return skills_executer_msgs::SkillExecutionResponse::Error;
-                }
-                else
-                {
-                    if(not status_srv.response.success)
+                    if(not status_clnt.call(status_srv) )
                     {
-                        ROS_ERROR("status_srv failed: %s",load_srv.request.filename.c_str());
-                        return skills_executer_msgs::SkillExecutionResponse::Fail;
+                        ROS_ERROR("Unable to get status program: %s",load_srv.request.filename.c_str());
+                        return skills_executer_msgs::SkillExecutionResponse::Error;
                     }
-                }
-                ros::Duration(0.01).sleep();
+                    else
+                    {
+                        if(not status_srv.response.success)
+                        {
+                            ROS_ERROR("status_srv failed: %s",load_srv.request.filename.c_str());
+                            return skills_executer_msgs::SkillExecutionResponse::Fail;
+                        }
+                    }
+                    ros::Duration(0.0001).sleep();
 
 
-                ROS_ERROR_STREAM("stato programma: "<<status_srv.response.state.state);
-                ROS_ERROR_STREAM("stato voluto: "<<ur_dashboard_msgs::ProgramState::STOPPED);
-                ROS_ERROR("---------");
+                    ROS_ERROR_STREAM("stato programma: "<<status_srv.response.state.state);
+                    ROS_ERROR_STREAM("stato voluto: "<<ur_dashboard_msgs::ProgramState::STOPPED);
+                    ROS_ERROR("---------");
 
-            }while(status_srv.response.state.state.compare(ur_dashboard_msgs::ProgramState::STOPPED) != 0);
+                }while(status_srv.response.state.state.compare(ur_dashboard_msgs::ProgramState::STOPPED) != 0);
+            }
         }
     }
     return skills_executer_msgs::SkillExecutionResponse::Success;
