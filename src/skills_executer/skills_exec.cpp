@@ -104,6 +104,7 @@ int SkillsExec::urLoadProgram(const std::string &action_name, const std::string 
         return skills_executer_msgs::SkillExecutionResponse::NoParam;
     }
     std::string program_to_exclude = "/programs/control_by_CARI.urp";
+    getParam(action_name, skill_name, "program_to_exclude", program_to_exclude);
 
     bool play;
     if (not getParam(action_name, skill_name, "play", play))
@@ -126,6 +127,8 @@ int SkillsExec::urLoadProgram(const std::string &action_name, const std::string 
     status_clnt.waitForExistence();
 
     ROS_WARN("Connection ok");
+
+    changeConfig(watch_config_);
 
     for(const std::string& program:programs)
     {
@@ -195,7 +198,31 @@ int SkillsExec::urLoadProgram(const std::string &action_name, const std::string 
 
             ROS_WARN("Program %s launched",load_srv.request.filename.c_str());
 
-            ros::Duration(1).sleep();
+            //ros::Duration(0.1).sleep();
+            do
+            {
+                if(not status_clnt.call(status_srv) )
+                {
+                    ROS_ERROR("Unable to get status program: %s",load_srv.request.filename.c_str());
+                    return skills_executer_msgs::SkillExecutionResponse::Error;
+                }
+                else
+                {
+                    if(not status_srv.response.success)
+                    {
+                        ROS_ERROR("status_srv failed: %s",load_srv.request.filename.c_str());
+                        return skills_executer_msgs::SkillExecutionResponse::Fail;
+                    }
+                }
+                ros::Duration(0.0001).sleep();
+
+
+                ROS_ERROR_STREAM("stato programma: "<<status_srv.response.state.state);
+                ROS_ERROR_STREAM("stato voluto: "<<ur_dashboard_msgs::ProgramState::PLAYING);
+                ROS_ERROR("---------");
+
+            }while(status_srv.response.state.state.compare(ur_dashboard_msgs::ProgramState::PLAYING) != 0);
+
 
             if(program.compare(program_to_exclude) == 0)
                 continue;
